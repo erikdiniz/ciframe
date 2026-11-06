@@ -1,5 +1,9 @@
 # coding: utf-8
 import json
+import functools
+import os
+import sqlite3
+from contextlib import closing
 from flask import Flask, request
 import sys
 from musica import *
@@ -33,6 +37,108 @@ TOM = 6
 SEQ_FAMOSA = 7
 CIFRA = 8
 TAM_PAGINA = 100
+
+# banco de dados: apenas o catalogo de sequencias customizadas
+CAMINHO_DB = os.environ.get('DECIFRAME_DB', 'db/deciframe.sqlite3')
+VERSAO_SCHEMA = 1
+SEQUENCIAS_ORIGINAIS = (
+    ('Bm', 'G', 'D', 'A'),
+    ('C', 'G', 'Am', 'F'),
+    ('Em', 'G'),
+    ('C', 'A7', 'Dm', 'G7'),
+    ('Gm', 'F'),
+    ('C', 'C7', 'F', 'Fm'),
+)
+
+
+def chave_sequencia(acordes):
+    """Chave canonica: lista em minusculas em JSON compacto e estavel."""
+    return json.dumps([acorde.lower() for acorde in acordes],
+            ensure_ascii=False, separators=(',', ':'))
+
+
+def conectar_db(caminho=None):
+    caminho = caminho or CAMINHO_DB
+    diretorio = os.path.dirname(os.path.abspath(caminho))
+    os.makedirs(diretorio, exist_ok=True)
+
+    conexao = sqlite3.connect(caminho)
+    conexao.row_factory = sqlite3.Row
+    conexao.execute('PRAGMA busy_timeout = 5000')
+    return conexao
+
+
+def _linha_para_sequencia(linha):
+    return {
+        'id': linha['id'],
+        'acordes': json.loads(linha['acordes']),
+    }
+
+
+def listar_sequencias(caminho=None):
+    with closing(conectar_db(caminho)) as conexao:
+        linhas = conexao.execute(
+            'SELECT id, acordes FROM sequencias ORDER BY id').fetchall()
+    return [_linha_para_sequencia(linha) for linha in linhas]
+
+
+def buscar_sequencia_por_chave(chave, caminho=None):
+    with closing(conectar_db(caminho)) as conexao:
+        linha = conexao.execute(
+            'SELECT id, acordes FROM sequencias WHERE chave = ?',
+            (chave,)).fetchone()
+    if linha is None:
+        return None
+    return _linha_para_sequencia(linha)
+
+
+def inserir_sequencia(acordes, chave, caminho=None):
+    """Insere se a chave nao existir e devolve (sequencia, duplicada)."""
+    acordes_json = json.dumps(list(acordes), ensure_ascii=False,
+            separators=(',', ':'))
+
+    with closing(conectar_db(caminho)) as conexao:
+        with conexao:
+            cursor = conexao.execute(
+                'INSERT OR IGNORE INTO sequencias (acordes, chave) VALUES (?, ?)',
+                (acordes_json, chave))
+            duplicada = cursor.rowcount == 0
+
+        linha = conexao.execute(
+            'SELECT id, acordes FROM sequencias WHERE chave = ?',
+            (chave,)).fetchone()
+
+    if linha is None:
+        raise RuntimeError('sequencia nao encontrada apos insercao: %s' % chave)
+    return _linha_para_sequencia(linha), duplicada
+
+
+def inicializar_db(caminho=None):
+    with closing(conectar_db(caminho)) as conexao:
+        with conexao:
+            versao = conexao.execute('PRAGMA user_version').fetchone()[0]
+
+            if versao == 0:
+                conexao.execute('''
+                    CREATE TABLE IF NOT EXISTS sequencias (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        acordes TEXT NOT NULL,
+                        chave TEXT NOT NULL UNIQUE,
+                        criada_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )''')
+                conexao.execute('PRAGMA user_version = %d' % VERSAO_SCHEMA)
+            elif versao != VERSAO_SCHEMA:
+                raise RuntimeError(
+                    'versao de schema nao suportada: %d (esperado %d)'
+                    % (versao, VERSAO_SCHEMA))
+
+            for acordes in SEQUENCIAS_ORIGINAIS:
+                conexao.execute(
+                    'INSERT OR IGNORE INTO sequencias (acordes, chave) VALUES (?, ?)',
+                    (json.dumps(list(acordes), ensure_ascii=False,
+                        separators=(',', ':')),
+                     chave_sequencia(acordes)))
+
 
 genero_musicas = {}
 generos = set()
@@ -96,6 +202,9 @@ for k,v in genero_musicas.items():
     genero_musicas[k].sort(key = lambda x : x.popularidade, reverse = True)
 
 f.close()
+
+# cria/abre o catalogo de sequencias; se falhar, o processo nao sobe
+inicializar_db()
 
 
 @app.route('/')
