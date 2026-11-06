@@ -57,6 +57,37 @@ def chave_sequencia(acordes):
             ensure_ascii=False, separators=(',', ':'))
 
 
+def validar_acordes_cadastro(acordes):
+    """Valida a lista do POST e devolve (acordes de exibicao, chave)."""
+    if not isinstance(acordes, list):
+        raise ValueError('acordes deve ser uma lista')
+    if not 2 <= len(acordes) <= 12:
+        raise ValueError('a sequência deve ter entre 2 e 12 acordes')
+
+    exibicao = []
+    for acorde in acordes:
+        if not isinstance(acorde, str):
+            raise ValueError('cada acorde deve ser uma string')
+
+        acorde = acorde.strip()
+        if not acorde:
+            raise ValueError('acorde vazio')
+        if any(caractere.isspace() for caractere in acorde):
+            raise ValueError('acorde não pode conter espaços internos')
+        if ',' in acorde:
+            raise ValueError('acorde não pode conter vírgula')
+        if len(acorde) > 20:
+            raise ValueError('acorde com mais de 20 caracteres')
+        if acorde[0].upper() not in 'ABCDEFG':
+            raise ValueError('acorde deve começar por A-G')
+        if acorde.lower() not in acordes_lower:
+            raise ValueError('acorde desconhecido: %s' % acorde)
+
+        exibicao.append(acorde[0].upper() + acorde[1:])
+
+    return exibicao, chave_sequencia(exibicao)
+
+
 def conectar_db(caminho=None):
     caminho = caminho or CAMINHO_DB
     diretorio = os.path.dirname(os.path.abspath(caminho))
@@ -143,12 +174,7 @@ def inicializar_db(caminho=None):
 genero_musicas = {}
 generos = set()
 acordes = set()
-sequencias = {'BmGDA' : 0,
-        'CGAmF' : 1,
-        'EmG' : 2,
-        'CA7DmG7' : 3,
-        'GmF' : 4,
-        'CC7FFm' : 5}
+acordes_lower = set()
 
 musicas_dict = {}
 
@@ -191,6 +217,7 @@ for line in f:
     # conjunto único de acordes
     for acorde in musica_obj.acordes:
         acordes.add(acorde)
+        acordes_lower.add(acorde.lower())
 
     # constrói dict mapeando gênero para músicas
     # deve ser usado para melhorar o desempenho das buscas
@@ -335,6 +362,30 @@ def get_generos():
 def get_acordes():
     return json.dumps(list(acordes))
 
+@app.route('/sequencias')
+def get_sequencias():
+    return json.dumps(listar_sequencias())
+
+@app.route('/sequencias', methods=['POST'])
+def post_sequencias():
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict) or 'acordes' not in dados:
+        return json.dumps(
+            {'erro': 'corpo JSON inválido; envie {"acordes": [...]}'}), 400
+
+    try:
+        acordes_cadastro, chave = validar_acordes_cadastro(dados['acordes'])
+    except ValueError as erro:
+        return json.dumps({'erro': str(erro)}), 400
+
+    sequencia, duplicada = inserir_sequencia(acordes_cadastro, chave)
+    resposta = {
+        'id': sequencia['id'],
+        'acordes': sequencia['acordes'],
+        'duplicada': duplicada,
+    }
+    return json.dumps(resposta), 200 if duplicada else 201
+
 @app.route('/musica/<m_id>/')
 def get_musica(m_id):
     return json.dumps(musicas[m_id].__dict__)
@@ -360,39 +411,19 @@ def get_similares():
         musica = musicas[id_musica_tag]
         acordes = musica.acordes
     elif sequencia_tag:
-        acordes = sequencia_tag.replace(',','')
-        similares = []
+        tokens = [token.strip() for token in sequencia_tag.split(',')
+                  if token.strip()]
+        chave = chave_sequencia(tokens)
 
-        if acordes in sequencias:
-            id_seq = sequencias[acordes]
-            similares = get_pagina(get_similares_por_sequencia(id_seq, generos_key), pagina_tag)
-        return json.dumps(similares)
+        if buscar_sequencia_por_chave(chave) is None:
+            return json.dumps([])
+
+        return json.dumps(
+            get_similares_por_chave(chave, generos_key, pagina_tag))
 
     similares = get_similares(acordes, generos_key, id_musica_tag)
 
     return json.dumps(get_pagina(similares, pagina_tag))
-
-def get_similares_por_sequencia(id_seq, generos_key):
-    # filtra para melhor desempenho
-    collection = apply_filtro(musicas.values(), generos_key)
-
-    similares = []
-    for musica in collection:
-        if str(id_seq) in musica.seqs_famosas:
-            similar = {
-                'id_unico_musica' : musica.id_unico_musica,
-                'id_artista' : musica.id_artista,
-                'id_musica' : musica.id_musica,
-                'nome_artista' : musica.nome_artista,
-                'nome_musica' : musica.nome_musica,
-                'popularidade' : musica.popularidade,
-                'acordes' : musica.acordes,
-                'genero' : musica.genero,
-                'url' : musica.url,
-            }
-            similares.append(similar)
-
-    return similares
 
 
 def get_pagina(colecao, pagina_tag):
