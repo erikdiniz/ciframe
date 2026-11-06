@@ -152,6 +152,10 @@ sequencias = {'BmGDA' : 0,
 
 musicas_dict = {}
 
+# auxiliares do matching: cifra ordenada em minusculas e vocabulario fechado
+cifras_lower = {}
+vocabularios = {}
+
 f = open('data/top/dataset_final.csv')
 f.readline()
 
@@ -179,6 +183,11 @@ for line in f:
 
     musicas_dict[musica_obj.id_unico_musica] = musica_obj
 
+    # auxiliares do matching, sem tocar nos atributos de Musica
+    cifra_lower = tuple(acorde.lower() for acorde in musica_obj.cifra)
+    cifras_lower[musica_obj.id_unico_musica] = cifra_lower
+    vocabularios[musica_obj.id_unico_musica] = set(cifra_lower)
+
     # conjunto único de acordes
     for acorde in musica_obj.acordes:
         acordes.add(acorde)
@@ -205,6 +214,60 @@ f.close()
 
 # cria/abre o catalogo de sequencias; se falhar, o processo nao sobe
 inicializar_db()
+
+
+def casa_sequencia(cifra_lower, vocabulario, seq):
+    """Regra unica: bloco contiguo e nenhum acorde fora da sequencia."""
+    if not seq:
+        return False
+    if not vocabulario <= set(seq):
+        return False
+
+    tamanho = len(seq)
+    for i in range(len(cifra_lower) - tamanho + 1):
+        if cifra_lower[i:i + tamanho] == seq:
+            return True
+    return False
+
+
+@functools.lru_cache(maxsize=64)
+def _matches_para_chave(chave):
+    """Musicas que casam com a chave canonica, ordenadas por popularidade."""
+    seq = tuple(json.loads(chave))
+
+    matches = []
+    for musica in musicas.values():
+        id_unico = musica.id_unico_musica
+        if casa_sequencia(cifras_lower[id_unico], vocabularios[id_unico], seq):
+            matches.append(musica)
+
+    matches.sort(key=lambda m: (-m.popularidade, m.id_unico_musica))
+    return tuple(matches)
+
+
+def get_similares_por_chave(chave, generos_key, pagina_tag):
+    """Filtra por genero, pagina e so entao monta os dicionarios da pagina."""
+    # apply_filtro reconstroi a colecao a partir dos buckets de genero, entao
+    # aqui filtramos o subconjunto do cache com a mesma semantica.
+    generos_validos = set(g for g in generos_key if g in generos)
+    collection = [musica for musica in _matches_para_chave(chave)
+                  if musica.genero in generos_validos]
+
+    similares = []
+    for musica in get_pagina(collection, pagina_tag):
+        similares.append({
+            'id_unico_musica' : musica.id_unico_musica,
+            'id_artista' : musica.id_artista,
+            'id_musica' : musica.id_musica,
+            'nome_artista' : musica.nome_artista,
+            'nome_musica' : musica.nome_musica,
+            'popularidade' : musica.popularidade,
+            'acordes' : musica.acordes,
+            'genero' : musica.genero,
+            'url' : musica.url,
+        })
+
+    return similares
 
 
 @app.route('/')

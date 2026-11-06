@@ -160,10 +160,14 @@ passo e precisa ser capturado **antes de qualquer alteração em `main.py`**.
 5. [ ] Aplicar o filtro de gênero depois do cache e antes da paginação,
    preservando o comportamento de `apply_filtro`: sem `generos`, todas as
    músicas; com `generos`, somente gêneros existentes no dataset. Reutilizar
-   `get_pagina` com `TAM_PAGINA = 100`.
-6. [ ] Remover o dicionário `sequencias` de `main.py:40-45` e a função antiga
-   `get_similares_por_sequencia`; a busca por sequência não deve mais consultar
-   `musica.seqs_famosas`.
+   `get_pagina` com `TAM_PAGINA = 100`. Como `apply_filtro` reconstrói a
+   coleção a partir dos buckets de gênero, o subconjunto do cache precisa ser
+   filtrado com a mesma semântica (gêneros válidos), não passado direto para
+   `apply_filtro`.
+6. [ ] Manter temporariamente o dicionário `sequencias` de `main.py:40-45` e a
+   função antiga `get_similares_por_sequencia`, para que `/similares` continue
+   funcionando entre os passos; a remoção acontece no Passo 3, junto com a
+   troca do ramo. O caminho novo não consulta `musica.seqs_famosas`.
 7. [ ] Manter `get_similares` (busca por `acordes`/`id_unico_musica`) e a
    precedência de `/similares` intactos.
 
@@ -190,6 +194,9 @@ passo e precisa ser capturado **antes de qualquer alteração em `main.py`**.
    vírgula, `strip` em cada token, descartar tokens vazios, calcular a chave
    canônica e buscar a sequência no SQLite. Se não existir, devolver `[]` com
    HTTP 200. Se existir, usar o matching restrito, aplicar gênero e paginar.
+   Remover o dicionário `sequencias` e a função antiga
+   `get_similares_por_sequencia`, agora substituída por
+   `get_similares_por_chave`.
 5. [ ] Manter a precedência atual: `acordes` > `id_unico_musica` > `sequencia`.
    Variações de caixa e espaço em `sequencia` passam a funcionar; o ramo
    `acordes`/`id_unico_musica` não muda.
