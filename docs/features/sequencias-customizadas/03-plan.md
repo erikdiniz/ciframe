@@ -275,41 +275,41 @@ passo e precisa ser capturado **antes de qualquer alteração em `main.py`**.
 
 ### 6. Testes, regressão e fechamento
 
-1. [ ] Criar `tests/support.py` para configurar `DECIFRAME_DB` para um arquivo
+1. [x] Criar `tests/support.py` para configurar `DECIFRAME_DB` para um arquivo
    temporário **antes** de importar `main`, evitar escrever no `db/` do
    repositório e oferecer um helper para limpar/resemear o catálogo entre
    testes que escrevem. Todos os módulos de teste importam `tests.support`
    antes de `main`.
-2. [ ] `tests/test_matching.py`: bloco contíguo, ordem diferente, acorde fora do
+2. [x] `tests/test_matching.py`: bloco contíguo, ordem diferente, acorde fora do
    conjunto, ausência de bloco, caixa diferente, repetição de acorde, cifra
    vazia e baixo (`/`) não normalizado.
-3. [ ] `tests/test_db.py`: DDL idempotente, seed com 6 linhas, seed repetido sem
+3. [x] `tests/test_db.py`: DDL idempotente, seed com 6 linhas, seed repetido sem
    duplicar, seed não sobrescreve linha existente, persistência ao fechar e
    reabrir o arquivo, e `DECIFRAME_DB` respeitado.
-4. [ ] `tests/test_api.py`: `GET /sequencias`, `POST` novo (`201`), duplicata
+4. [x] `tests/test_api.py`: `GET /sequencias`, `POST` novo (`201`), duplicata
    (`200` + `duplicada: true`), validações (`400`), busca por sequência
    existente, busca por sequência inexistente (`[]`, HTTP 200), variação de
    caixa/espaço, sequência com `#` codificado e `Content-Type: text/html` com
    corpo JSON em string.
-5. [ ] `tests/test_regression.py`: para cada uma das 6, percorrer todas as
+5. [x] `tests/test_regression.py`: para cada uma das 6, percorrer todas as
    páginas de `/similares?sequencia=...` e comparar a **união** dos
    `id_unico_musica` com o fixture; conferir também as contagens. Comparar
    conjuntos, nunca ordem ou composição de página.
-6. [ ] Testar a independência de `SEQ_FAMOSA`: salvar o estado de
+6. [x] Testar a independência de `SEQ_FAMOSA`: salvar o estado de
    `seqs_famosas`, zerar em memória, repetir as 6 buscas e confirmar que o
    resultado continua igual ao baseline; restaurar o estado em `finally`.
-7. [ ] Testar que `/musica/<id>/` não ganhou campos novos: as chaves de
+7. [x] Testar que `/musica/<id>/` não ganhou campos novos: as chaves de
    `Musica.__dict__` continuam exatamente as atuais.
-8. [ ] Rodar a suíte com `python -m unittest discover -s tests -v` e registrar
+8. [x] Rodar a suíte com `python -m unittest discover -s tests -v` e registrar
    no `04-test-report.md` a cobertura, o resultado da regressão, os comandos e
    o que ficou de fora (browser E2E e frontend automatizado, por exemplo).
-9. [ ] Fazer o smoke test no Docker: `curl /generos`, `curl /sequencias`,
+9. [x] Fazer o smoke test no Docker: `curl /generos`, `curl /sequencias`,
    `POST /sequencias`, busca pela sequência nova, busca pelas 6 e reinício com
    volume.
 10. [ ] Gravar o GIF/vídeo de demonstração no browser exigido pela entrega:
     catálogo com as 6, cadastro de uma sequência nova, busca, duplicata e uma
-    sequência com `#`.
-11. [ ] Se a implementação mudar alguma decisão da proposta (regra, schema,
+    sequência com `#`. **Adiado: o vídeo será gravado pelo usuário.**
+11. [x] Se a implementação mudar alguma decisão da proposta (regra, schema,
     status code, cache), atualizar este plano e a proposta/ADR **antes** de
     continuar. Não deixar o plano desatualizado.
 
@@ -372,30 +372,30 @@ passo e precisa ser capturado **antes de qualquer alteração em `main.py`**.
 
 ## Definição de pronto
 
-- [ ] As 6 sequências originais retornam exatamente o mesmo conjunto de
+- [x] As 6 sequências originais retornam exatamente o mesmo conjunto de
   `id_unico_musica` do baseline, com contagens `199/296/4/5/7/3`.
-- [ ] A busca não depende mais de `musica.seqs_famosas`; o teste que zera a
+- [x] A busca não depende mais de `musica.seqs_famosas`; o teste que zera a
   lista em memória continua devolvendo o baseline.
-- [ ] Qualquer sequência cadastrada pode ser buscada e obedece à regra única:
+- [x] Qualquer sequência cadastrada pode ser buscada e obedece à regra única:
   bloco contíguo em `musica.cifra` e nenhum acorde fora do conjunto da
   sequência.
-- [ ] `GET /sequencias` lista o catálogo e `POST /sequencias` cadastra de forma
+- [x] `GET /sequencias` lista o catálogo e `POST /sequencias` cadastra de forma
   idempotente, com `201`/`200`/`400` e mensagens de erro úteis.
-- [ ] O catálogo persiste após reiniciar o processo, recriar o container e
+- [x] O catálogo persiste após reiniciar o processo, recriar o container e
   reconstruir a imagem usando o volume nomeado.
-- [ ] O frontend `#/porsequencia` carrega as 6 do backend (incluindo `Em G` e
+- [x] O frontend `#/porsequencia` carrega as 6 do backend (incluindo `Em G` e
   `C A7 Dm G7`), permite cadastrar, selecionar, buscar, filtrar por gênero e
   lida com carregamento/erro/duplicata; sequências com `#` funcionam.
-- [ ] Endpoints continuam devolvendo `json.dumps(...)` como string, com
+- [x] Endpoints continuam devolvendo `json.dumps(...)` como string, com
   `Content-Type: text/html`, inclusive os novos e os erros.
-- [ ] `/musica/<id>/` não mudou de formato; `Musica.__dict__` tem as mesmas
+- [x] `/musica/<id>/` não mudou de formato; `Musica.__dict__` tem as mesmas
   chaves de antes.
-- [ ] `README.md`, `AGENTS.md`, `Dockerfile`, `.gitignore` e `.dockerignore`
+- [x] `README.md`, `AGENTS.md`, `Dockerfile`, `.gitignore` e `.dockerignore`
   refletem o banco e o volume.
 - [ ] O GIF/vídeo de demonstração do fluxo no browser foi gravado para a
-  entrega.
-- [ ] `python -m unittest discover -s tests -v` passa, e o
+  entrega. **Adiado: o usuário grava o vídeo.**
+- [x] `python -m unittest discover -s tests -v` passa, e o
   `04-test-report.md` registra cobertura, regressão, comandos e limitações com
   honestidade.
-- [ ] Se alguma decisão mudou durante a implementação, este plano e a
+- [x] Se alguma decisão mudou durante a implementação, este plano e a
   proposta/ADR foram atualizados antes de continuar.
