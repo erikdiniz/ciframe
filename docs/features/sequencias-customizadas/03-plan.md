@@ -243,6 +243,13 @@ passo e precisa ser capturado **antes de qualquer alteração em `main.py`**.
    refresh para descartar JS antigo em cache.
 7. [ ] Não adicionar framework, build step, serviço Angular ou dependência
    nova; usar `$http` direto, como o restante do código.
+8. [ ] Adicionar “Carregar mais” nos resultados da busca, usando o parâmetro
+   `pagina` já existente e sem metadados novos na resposta: acumular páginas,
+   resetar em nova busca/gênero, ignorar respostas de buscas antigas e assumir
+   que há mais enquanto o lote tiver 100 itens.
+9. [ ] Limitar a altura do catálogo de sequências com rolagem, sem paginar
+   `GET /sequencias`, para que o formulário de cadastro não seja empurrado para
+   baixo quando o catálogo crescer.
 
 ### 5. Docker, volume e documentação
 

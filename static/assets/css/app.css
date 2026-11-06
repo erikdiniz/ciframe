@@ -163,6 +163,13 @@ a:active {
   margin: auto;
   clear: both;
 }
+/* Catalogo de sequencias com altura limitada para nao empurrar o cadastro */
+.sequencias-lista {
+  max-height: 45vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 4px;
+}
 /* Acorde directive*/
 .acorde-wrapper {
   float: left;
